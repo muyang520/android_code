@@ -245,12 +245,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             tesucanshu(shuzu, duixiang1, list, Sites, listString);
             tesucanshu2(shuzu, duixiang1, list, Sites, listString);
         } else if (v.getId() == R.id.unidbg_fuzhacanshu) {
-            Log.d(TAG, "进入unidbg复杂参数调用");
 
             //数组类型 https://www.runoob.com/java/java-array.html
             int[] shuzu = new int[]{3, 1, 2, 6, 4, 2};
             //对象类型
             Person duixiang1 = new Person("JNI奥特曼", 100, "来自JNI的奥特曼");
+            Log.d(TAG, "进入unidbg复杂参数调用"+duixiang1.getName());
 
             ArrayList<String> list = new ArrayList<>();
             list.add("JNI关羽");

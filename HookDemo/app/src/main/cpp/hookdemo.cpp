@@ -4,6 +4,7 @@
 #include <string.h>
 #include<android/log.h>
 #include <string>
+#include "utils.cpp"
 
 #define TAG    "muyang" // 这个是自定义的LOG的标识
 #define LOGD(...)  __android_log_print(ANDROID_LOG_DEBUG,TAG,__VA_ARGS__) // 定义LOGD类型
@@ -98,11 +99,11 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
     return JNI_VERSION_1_4;
 }
 
-std::string jstringToStdString(JNIEnv* env, jstring jstr) {
+std::string jstringToStdString(JNIEnv *env, jstring jstr) {
     if (jstr == NULL) {
         return "";
     }
-    char* chars = (char*)env->GetStringUTFChars(jstr, NULL);
+    char *chars = (char *) env->GetStringUTFChars(jstr, NULL);
     std::string ret(chars);
     env->ReleaseStringUTFChars(jstr, chars);
     return ret;
@@ -142,15 +143,27 @@ Java_com_example_hookdemo_MainActivity_tesucanshu_1jni(JNIEnv *env, jobject thiz
     //调用Person的print对象   考验补环境
     //1得到字节码
     jclass jclazz = env->FindClass("com/example/hookdemo/Person");
+
+    //3unidbg 构造 AllocObject
+    jobject object = env->AllocObject(jclazz);
+
+
     //2得到方法
     jmethodID jmethodIds = env->GetMethodID(jclazz, "getAge", "()I");
-    //3实例化
-    jobject object = env->AllocObject(jclazz);
     //4调用方法
-    int age = env->CallIntMethod(object, jmethodIds);
+    int age = env->CallIntMethod(person, jmethodIds);
+
+    //2得到方法
+    jmethodID jmethodId_name = env->GetMethodID(jclazz, "getName", "()Ljava/lang/String;");
+
+    //4.unidbg处理 返回为字符串的
+    jstring nameobj = (jstring) (env->CallObjectMethod(person, jmethodId_name));
+    // 将 jstring 转换为 C 字符串
+    const char *nameobjString = env->GetStringUTFChars(nameobj, NULL);
+    // 打印字符串
+    LOGE("Java nameobjString String: %s\n", nameobjString);
 
 
-    //打印 ArrayList  listt
     // 获取 ArrayList 类
     jclass arrayListClass = env->GetObjectClass(listt);
 
@@ -183,29 +196,22 @@ Java_com_example_hookdemo_MainActivity_tesucanshu_1jni(JNIEnv *env, jobject thiz
         }
     }
 
-
     // 获取对象的类
     jclass objClass = env->GetObjectClass(hashMap);
 
-    // 获取 toString 方法 ID
+    // 获取 toString 方法 ID   unidbg处理返回值string
     jmethodID toStringMethod = env->GetMethodID(objClass, "toString", "()Ljava/lang/String;");
-
     // 调用 toString 方法
     jstring javaString = (jstring) (env->CallObjectMethod(hashMap, toStringMethod));
-
     // 将 jstring 转换为 C 字符串
     const char *cString = env->GetStringUTFChars(javaString, NULL);
-
     // 打印字符串
     LOGE("Java String: %s\n", cString);
-
     // 释放字符串资源
     env->ReleaseStringUTFChars(javaString, cString);
 
-
     // 获取数组长度
     jsize arrayLength = env->GetArrayLength(static_cast<jarray>(stringArray));
-
     for (jsize i = 0; i < arrayLength; ++i) {
         // 获取数组中的每个字符串
         jstring javaString = (jstring) (env->GetObjectArrayElement(
@@ -221,11 +227,16 @@ Java_com_example_hookdemo_MainActivity_tesucanshu_1jni(JNIEnv *env, jobject thiz
         env->ReleaseStringUTFChars(javaString, cString);
     }
 
-    std::string s3="闯关失败";
-    if(age == 100){
+
+    char *sha1 = getSha1(env, getGlobalContext(env));
+    jboolean result = checkValidity(env, sha1);
+
+
+    std::string s3 = "闯关失败";
+    if (age == 100 && result) {
         std::string ret = "恭喜你闯过本关  你输入的第二个参数是";
-        std::string s2=jstringToStdString(env,two);
-        s3=ret+s2;
+        std::string s2 = jstringToStdString(env, two);
+        s3 = ret + s2;
     }
     return env->NewStringUTF(s3.c_str());
 }
