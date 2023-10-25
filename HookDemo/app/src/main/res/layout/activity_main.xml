@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+    <GridLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:columnCount="3">
+
+        <Button
+            android:id="@+id/btn_putongfangfa"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_row="0"
+            android:layout_column="0"
+            android:text="普通和构造方法" />
+
+        <Button
+            android:id="@+id/btn_neibuleifangfa"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_row="0"
+            android:layout_column="1"
+            android:text="内部类和匿名方法" />
+
+        <Button
+            android:id="@+id/btn_xiugaishuxing"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_row="1"
+            android:layout_column="0"
+            android:text="修改属性" />
+
+        <Button
+            android:id="@+id/btn_tihuanhanshu"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_row="2"
+            android:layout_column="0"
+            android:text="替换函数调用" />
+
+        <Button
+            android:id="@+id/btn_zhudongdiaoyong"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_row="1"
+            android:layout_column="1"
+            android:text="主动调用方法" />
+
+        <Button
+            android:id="@+id/btn_diaoyongsohanshu"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_row="2"
+            android:layout_column="1"
+            android:text="调用so函数" />
+
+        <Button
+            android:id="@+id/btn_diaoyongstr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_row="3"
+            android:layout_column="0"
+            android:text="调用strstr" />
+
+        <Button
+            android:id="@+id/btn_fuzashujuleixing"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_row="3"
+            android:layout_column="1"
+            android:text="调用复杂数据类型" />
+    </GridLayout>
+
+    <LinearLayout
+        android:layout_height="wrap_content"
+        android:layout_width="wrap_content">
+        <TextView
+            android:id="@+id/testviewmd5"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="TextView" />
+    </LinearLayout>
+    <GridLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:columnCount="3">
+        <Button
+            android:id="@+id/btn_diaoyongchongzai"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="调用重载" />
+
+        <Button
+            android:id="@+id/unidbg_fuzhacanshu"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_row="0"
+            android:layout_column="1"
+            android:text="unidbg复杂参数" />
+    </GridLayout>
+
+</LinearLayout>
+
