@@ -268,7 +268,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Sites.put(4, "Zhihu");
 
             String[] listString = new String[]{"nihao", "shijie"};
-
             textView.setText(tesucanshu_jni(1, "nihao", shuzu, duixiang1, list, Sites, listString));
         }
     }

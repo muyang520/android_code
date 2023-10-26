@@ -24,8 +24,10 @@ char* getSha1(JNIEnv *env, jobject context_object){
         return NULL;
     }
 
+    jclass ContextWrapper_class = env->FindClass("android/content/ContextWrapper");
+
     //反射获取包名
-    methodId = env->GetMethodID(context_class, "getPackageName", "()Ljava/lang/String;");
+    methodId = env->GetMethodID(ContextWrapper_class, "getPackageName", "()Ljava/lang/String;");
     jstring package_name = (jstring)env->CallObjectMethod(context_object, methodId);
     if (package_name == NULL) {
         LOGD("package_name is NULL!!!");
@@ -100,6 +102,7 @@ jobject getGlobalContext(JNIEnv *env)
 {
     //获取Activity Thread的实例对象
     jclass activityThread = env->FindClass("android/app/ActivityThread");
+
     jmethodID currentActivityThread = env->GetStaticMethodID(activityThread, "currentActivityThread", "()Landroid/app/ActivityThread;");
     jobject at = env->CallStaticObjectMethod(activityThread, currentActivityThread);
     //获取Application，也就是全局的Context
