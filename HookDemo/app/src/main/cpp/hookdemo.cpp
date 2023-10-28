@@ -6,6 +6,10 @@
 #include <string>
 #include "utils.cpp"
 
+#include "sha1.h"
+#include "aes.h"
+static const uint8_t AES_KEY[] = "xS544RXNm0P4JVLHIEsTqJNzDbZhiLjr";
+
 #define TAG    "muyang" // 这个是自定义的LOG的标识
 #define LOGD(...)  __android_log_print(ANDROID_LOG_DEBUG,TAG,__VA_ARGS__) // 定义LOGD类型
 #define LOGI(...)  __android_log_print(ANDROID_LOG_INFO,TAG,__VA_ARGS__) // 定义LOGI类型
@@ -240,3 +244,54 @@ Java_com_example_hookdemo_MainActivity_tesucanshu_1jni(JNIEnv *env, jobject thiz
     }
     return env->NewStringUTF(s3.c_str());
 }
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_example_hookdemo_MainActivity_sha1(JNIEnv *env, jobject thiz, jstring str1) {
+    // TODO: implement sha1()
+
+    const char * plaintextChar = env->GetStringUTFChars(str1, 0);
+    std::string plaintextStr = std::string(plaintextChar);
+
+    SHA1 sha1;
+    std::string sha1String = sha1(plaintextStr);
+    char * tabStr = new char [sha1String.length()+1];
+    strcpy(tabStr, sha1String.c_str());
+
+    char sha1Result[128] = {0};
+    formatSignature(tabStr, sha1Result);
+    return env->NewStringUTF(sha1Result);
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_example_hookdemo_MainActivity_aesEncryptECB(JNIEnv *env, jclass clazz, jbyteArray jbArr) {
+    // TODO: implement aesEncrypt()
+    char *str = NULL;
+    jsize alen = env->GetArrayLength(jbArr);
+    jbyte *ba = env->GetByteArrayElements(jbArr, JNI_FALSE);
+    str = (char *) malloc(alen + 1);
+    memcpy(str, ba, alen);
+    str[alen] = '\0';
+    env->ReleaseByteArrayElements(jbArr, ba, 0);
+
+    char *result = AES_ECB_PKCS7_Encrypt(str, AES_KEY);//AES ECB PKCS7Padding加密
+//    char *result = AES_CBC_PKCS7_Encrypt(str, AES_KEY, AES_IV);//AES CBC PKCS7Padding加密
+    return env->NewStringUTF(result);
+
+}
+extern "C"
+JNIEXPORT jbyteArray JNICALL
+Java_com_example_hookdemo_MainActivity_aesDecryptECB(JNIEnv *env, jclass clazz, jstring out_str) {
+    // TODO: implement aesDecrypt_ECB()
+    const char *str = env->GetStringUTFChars(out_str, 0);
+    char *result = AES_ECB_PKCS7_Decrypt(str, AES_KEY);//AES ECB PKCS7Padding解密
+//    char *result = AES_CBC_PKCS7_Decrypt(str, AES_KEY, AES_IV);//AES CBC PKCS7Padding解密 弱检验不建议使用
+    env->ReleaseStringUTFChars(out_str, str);
+
+    jsize len = (jsize) strlen(result);
+    jbyteArray jbArr = env->NewByteArray(len);
+    env->SetByteArrayRegion(jbArr, 0, len, (jbyte *) result);
+    return jbArr;
+}
+

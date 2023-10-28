@@ -124,3 +124,17 @@ jboolean checkValidity(JNIEnv *env,char *sha1){
 }
 
 
+
+void formatSignature(char* data, char* resultData) {
+    int resultIndex = 0;
+    int length = strlen(data);
+    for(int i = 0; i < length; i++) {
+        resultData[resultIndex] = static_cast<char>(toupper(data[i]));
+        if(i % 2 == 1 && i != length -1) {
+            resultData[resultIndex+1] = ':';
+            resultIndex+=2;
+        } else {
+            resultIndex++;
+        }
+    }
+}

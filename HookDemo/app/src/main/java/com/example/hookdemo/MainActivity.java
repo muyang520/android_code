@@ -8,10 +8,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
-import com.google.gson.Gson;
-
 import java.lang.reflect.Array;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -35,6 +32,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     public native String tesucanshu_jni(int i, String two, int[] array, Person person, Object listt, Object Sites, Object StringList);
 
+    public native String sha1(String str);
+    public static native String aesEncryptECB(byte[] bytes);
+    public static native byte[] aesDecryptECB(String str);
 
     private TextView textView;
 
@@ -268,7 +268,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Sites.put(4, "Zhihu");
 
             String[] listString = new String[]{"nihao", "shijie"};
-            textView.setText(tesucanshu_jni(1, "nihao", shuzu, duixiang1, list, Sites, listString));
+            textView.setText(tesucanshu_jni(12345678, "nihao", shuzu, duixiang1, list, Sites, listString));
+
+            Log.d(TAG,"SHA1加密"+sha1("你好"));
+            Log.d(TAG,"aes加密"+aesEncryptECB("你好".getBytes()));
+            Log.d(TAG,"aes解密"+ new String(aesDecryptECB(aesEncryptECB("你好".getBytes()))));
         }
     }
 }
