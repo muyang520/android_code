@@ -6,6 +6,10 @@
 #include <string>
 #include "utils.cpp"
 
+#include "sha1.h"
+#include "aes.h"
+static const uint8_t AES_KEY[] = "xS544RXNm0P4JVLHIEsTqJNzDbZhiLjr";
+
 #define TAG    "muyang" // 这个是自定义的LOG的标识
 #define LOGD(...)  __android_log_print(ANDROID_LOG_DEBUG,TAG,__VA_ARGS__) // 定义LOGD类型
 #define LOGI(...)  __android_log_print(ANDROID_LOG_INFO,TAG,__VA_ARGS__) // 定义LOGI类型
@@ -239,4 +243,168 @@ Java_com_example_hookdemo_MainActivity_tesucanshu_1jni(JNIEnv *env, jobject thiz
         s3 = ret + s2;
     }
     return env->NewStringUTF(s3.c_str());
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_example_hookdemo_MainActivity_sha1(JNIEnv *env, jobject thiz, jstring str1) {
+    // TODO: implement sha1()
+
+    const char * plaintextChar = env->GetStringUTFChars(str1, 0);
+    std::string plaintextStr = std::string(plaintextChar);
+
+    SHA1 sha1;
+    std::string sha1String = sha1(plaintextStr);
+    char * tabStr = new char [sha1String.length()+1];
+    strcpy(tabStr, sha1String.c_str());
+
+    char sha1Result[128] = {0};
+    formatSignature(tabStr, sha1Result);
+    return env->NewStringUTF(sha1Result);
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_example_hookdemo_MainActivity_aesEncryptECB(JNIEnv *env, jclass clazz, jbyteArray jbArr) {
+    // TODO: implement aesEncrypt()
+    char *str = NULL;
+    jsize alen = env->GetArrayLength(jbArr);
+    jbyte *ba = env->GetByteArrayElements(jbArr, JNI_FALSE);
+    str = (char *) malloc(alen + 1);
+    memcpy(str, ba, alen);
+    str[alen] = '\0';
+    env->ReleaseByteArrayElements(jbArr, ba, 0);
+
+    char *result = AES_ECB_PKCS7_Encrypt(str, AES_KEY);//AES ECB PKCS7Padding加密
+//    char *result = AES_CBC_PKCS7_Encrypt(str, AES_KEY, AES_IV);//AES CBC PKCS7Padding加密
+    return env->NewStringUTF(result);
+
+}
+extern "C"
+JNIEXPORT jbyteArray JNICALL
+Java_com_example_hookdemo_MainActivity_aesDecryptECB(JNIEnv *env, jclass clazz, jstring out_str) {
+    // TODO: implement aesDecrypt_ECB()
+    const char *str = env->GetStringUTFChars(out_str, 0);
+    char *result = AES_ECB_PKCS7_Decrypt(str, AES_KEY);//AES ECB PKCS7Padding解密
+//    char *result = AES_CBC_PKCS7_Decrypt(str, AES_KEY, AES_IV);//AES CBC PKCS7Padding解密 弱检验不建议使用
+    env->ReleaseStringUTFChars(out_str, str);
+
+    jsize len = (jsize) strlen(result);
+    jbyteArray jbArr = env->NewByteArray(len);
+    env->SetByteArrayRegion(jbArr, 0, len, (jbyte *) result);
+    return jbArr;
+}
+
+jbyteArray convertByteArrayToJByteArray(JNIEnv* env, const jbyte* byteArray, int length) {
+    jbyteArray jbyteArrayObject = env->NewByteArray(length);
+    env->SetByteArrayRegion(jbyteArrayObject, 0, length, byteArray);
+
+    return jbyteArrayObject;
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_example_hookdemo_MainActivity_getHash(JNIEnv *env, jobject thiz, jstring apk_path) {
+    // TODO: implement getHash()
+    const char* apkPath = env->GetStringUTFChars(apk_path, NULL);
+
+    // 获取Java类和方法的引用
+    jclass zipFileClass = env->FindClass("java/util/zip/ZipFile");
+    jmethodID openMethod = env->GetMethodID(zipFileClass, "<init>", "(Ljava/lang/String;)V");
+    jmethodID entriesMethod = env->GetMethodID(zipFileClass, "entries", "()Ljava/util/Enumeration;");
+    jclass enumerationClass = env->FindClass("java/util/Enumeration");
+    jmethodID hasMoreElementsMethod = env->GetMethodID(enumerationClass, "hasMoreElements", "()Z");
+    jmethodID nextElementMethod = env->GetMethodID(enumerationClass, "nextElement", "()Ljava/lang/Object;");
+    jclass zipEntryClass = env->FindClass("java/util/zip/ZipEntry");
+    jmethodID getNameMethod = env->GetMethodID(zipEntryClass, "getName", "()Ljava/lang/String;");
+    jmethodID getInputStreamMethod = env->GetMethodID(zipFileClass, "getInputStream", "(Ljava/util/zip/ZipEntry;)Ljava/io/InputStream;");
+    jclass inputStreamClass = env->FindClass("java/io/InputStream");
+    jmethodID readMethod = env->GetMethodID(inputStreamClass, "read", "([B)I");
+    jmethodID closeMethod = env->GetMethodID(inputStreamClass, "close", "()V");
+
+    // 创建ZipFile对象并打开APK文件
+    jobject zipFileObj = env->NewObject(zipFileClass, openMethod, apk_path);
+    if (zipFileObj == NULL) {
+        __android_log_print(ANDROID_LOG_ERROR, "JNI", "Failed to open APK file");
+        env->ReleaseStringUTFChars(apk_path, apkPath);
+        return NULL;
+    }
+
+    // 获取ZipFile的entries方法并调用
+    jobject entriesObj = env->CallObjectMethod(zipFileObj, entriesMethod);
+    if (entriesObj == NULL) {
+        __android_log_print(ANDROID_LOG_ERROR, "JNI", "Failed to get entries");
+        env->DeleteLocalRef(zipFileObj);
+        env->ReleaseStringUTFChars(apk_path, apkPath);
+        return NULL;
+    }
+
+    // 遍历ZipFile中的每个条目并计算MD5值
+    jboolean hasMoreElements = env->CallBooleanMethod(entriesObj, hasMoreElementsMethod);
+
+// 获取MessageDigest类和DigestUtils类的引用
+    jclass messageDigestClass = env->FindClass("java/security/MessageDigest");
+    jmethodID getInstanceMethod = env->GetStaticMethodID(messageDigestClass, "getInstance", "(Ljava/lang/String;)Ljava/security/MessageDigest;");
+    // 获取MD5哈希值
+    jstring algorithm = env->NewStringUTF("MD5");
+    jobject messageDigestObj = env->CallStaticObjectMethod(messageDigestClass, getInstanceMethod, algorithm);
+
+    jmethodID md5update = env->GetMethodID(messageDigestClass, "update", "([B)V");
+    jmethodID md5digest = env->GetMethodID(messageDigestClass, "digest", "()[B");
+
+
+
+    while (hasMoreElements) {
+        jobject zipEntryObj = env->CallObjectMethod(entriesObj, nextElementMethod);
+        if (zipEntryObj != NULL) {
+            jstring nameObj = (jstring) env->CallObjectMethod(zipEntryObj, getNameMethod);
+            const char* entryName = env->GetStringUTFChars(nameObj, NULL);
+
+            // 获取ZipEntry对应的InputStream对象
+            jobject inputObj = env->CallObjectMethod(zipFileObj, getInputStreamMethod, zipEntryObj);
+            if (inputObj != NULL) {
+                // 读取InputStream中的数据并更新MD5值
+                jbyteArray bufferObj = env->NewByteArray(4096);
+                jbyte* buffer = env->GetByteArrayElements(bufferObj, NULL);
+                jint bytesRead;
+                while ((bytesRead = env->CallIntMethod(inputObj, readMethod, bufferObj)) > 0) {
+//                    MD5_Update(&md5Ctx, buffer, bytesRead);
+                    env->CallVoidMethod(messageDigestObj,md5update,convertByteArrayToJByteArray(env,buffer,bytesRead));
+                }
+                env->ReleaseByteArrayElements(bufferObj, buffer, 0);
+                env->DeleteLocalRef(bufferObj);
+
+                // 关闭InputStream对象
+                env->CallVoidMethod(inputObj, closeMethod);
+                env->DeleteLocalRef(inputObj);
+            }
+
+            env->ReleaseStringUTFChars(nameObj, entryName);
+            env->DeleteLocalRef(nameObj);
+            env->DeleteLocalRef(zipEntryObj);
+        }
+
+        hasMoreElements = env->CallBooleanMethod(entriesObj, hasMoreElementsMethod);
+    }
+
+    // 释放资源
+    env->DeleteLocalRef(entriesObj);
+    env->DeleteLocalRef(zipFileObj);
+    env->ReleaseStringUTFChars(apk_path, apkPath);
+
+    jbyteArray jbyteArray1 = static_cast<jbyteArray>(env->CallObjectMethod(messageDigestObj,
+                                                                           md5digest));
+    jsize jsize1 = env->GetArrayLength(jbyteArray1) ;
+
+    jbyte* jbyte1= env->GetByteArrayElements(jbyteArray1,0);
+
+    char buf[33];
+    for (int i=0;i<jsize1;i++) {
+        sprintf(buf + i * 2,"%02X",jbyte1[i]);
+    }
+    buf[32] = 0;
+    LOGE("%s",buf);
+
+    return env->NewStringUTF(buf);
+
 }

@@ -14,6 +14,19 @@ project("hookdemo")
 # or SHARED, and provides the relative paths to its source code.
 # You can define multiple libraries, and CMake builds them for you.
 # Gradle automatically packages shared libraries with your APK.
+SET(CMAKE_CXX_FLAGS "-Wno-error=format-security -Wno-error=pointer-sign")
+
+set(hookdemo_srcs
+        sha1.h
+        sha1.cpp
+        md5.h
+        md5.cpp
+        aes.h
+        aes.c
+        base64.h
+        base64.c
+        hookdemo.cpp
+)
 
 add_library( # Sets the name of the library.
              hookdemo
@@ -22,8 +35,7 @@ add_library( # Sets the name of the library.
              SHARED
 
              # Provides a relative path to your source file(s).
-        md5.cpp
-        hookdemo.cpp )
+        ${hookdemo_srcs})
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by
