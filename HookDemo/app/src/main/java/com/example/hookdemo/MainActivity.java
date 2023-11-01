@@ -37,6 +37,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public static native byte[] aesDecryptECB(String str);
 
     public native String getHash(String str);
+
+    public native String jiance_xp_frida();
+
     private TextView textView;
 
     @Override
@@ -62,6 +65,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         findViewById(R.id.btn_diaoyongchongzai).setOnClickListener(this);
         findViewById(R.id.unidbg_fuzhacanshu).setOnClickListener(this);
         findViewById(R.id.huoquapkhash).setOnClickListener(this);
+        findViewById(R.id.jiancefrida).setOnClickListener(this);
+
         person1 = new Person("全局muyang", 20, "中国");
         textView = findViewById(R.id.testviewmd5);
 
@@ -279,7 +284,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else if (v.getId()==R.id.huoquapkhash) {
             Log.d(TAG,getApplicationContext().getPackageCodePath());
             textView.setText("当前apkhash值= "+getHash(getApplicationContext().getPackageCodePath()));
-
+        }else if(v.getId() == R.id.jiancefrida){
+            jiance_xp_frida();
         }
     }
 }

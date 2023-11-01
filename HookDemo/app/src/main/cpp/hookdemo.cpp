@@ -408,3 +408,17 @@ Java_com_example_hookdemo_MainActivity_getHash(JNIEnv *env, jobject thiz, jstrin
     return env->NewStringUTF(buf);
 
 }
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_example_hookdemo_MainActivity_jiance_1xp_1frida(JNIEnv *env, jobject thiz) {
+    // TODO: implement jiance_xp_frida()
+    //在这里面实现 读取maps,fd文件检测
+//    pthread_t t;
+//    if (pthread_create(&t, nullptr, check_loop, (void *) nullptr) != 0) {
+//        exit(-1);
+//    };
+//    pthread_detach(t);
+    check_loop(reinterpret_cast<void *>(1));
+    return env->NewStringUTF("11");
+}
+
