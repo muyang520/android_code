@@ -3,11 +3,15 @@ package com.example.hookdemo;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Context;
+import android.os.Build;
 import android.os.Bundle;
+import android.system.ErrnoException;
+import android.system.Os;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
+import java.io.DataOutputStream;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,6 +43,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public native String getHash(String str);
 
     public native String jiance_xp_frida();
+    public native void xitongdiaoyong();
 
     private TextView textView;
 
@@ -66,6 +71,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         findViewById(R.id.unidbg_fuzhacanshu).setOnClickListener(this);
         findViewById(R.id.huoquapkhash).setOnClickListener(this);
         findViewById(R.id.jiancefrida).setOnClickListener(this);
+        findViewById(R.id.xitongbianliang).setOnClickListener(this);
 
         person1 = new Person("全局muyang", 20, "中国");
         textView = findViewById(R.id.testviewmd5);
@@ -121,6 +127,38 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
 
+    public static boolean RootCommand(String command)
+    {
+        Process process = null;
+        DataOutputStream os = null;
+        try
+        {
+            process = Runtime.getRuntime().exec("su");
+            os = new DataOutputStream(process.getOutputStream());
+            os.writeBytes(command + "\n");
+            os.writeBytes("exit\n");
+            os.flush();
+            process.waitFor();
+        } catch (Exception e)
+        {
+            Log.d("*** DEBUG ***", "ROOT REE" + e.getMessage());
+            return false;
+        } finally
+        {
+            try
+            {
+                if (os != null)
+                {
+                    os.close();
+                }
+                process.destroy();
+            } catch (Exception e)
+            {
+            }
+        }
+        Log.d("*** DEBUG ***", "Root SUC ");
+        return true;
+    }
     public void tesucanshu2(int[] array, Person person, Object listt, Object Sites, Object StringList) {
 
         showlog("进入特殊参数函数2");
@@ -285,7 +323,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Log.d(TAG,getApplicationContext().getPackageCodePath());
             textView.setText("当前apkhash值= "+getHash(getApplicationContext().getPackageCodePath()));
         }else if(v.getId() == R.id.jiancefrida){
-            jiance_xp_frida();
+            textView.setText(jiance_xp_frida());
+        }else if(v.getId() == R.id.xitongbianliang){
+            Log.d(TAG,"进来");
+            try {
+                Os.setenv("muyang","6666",true);
+            } catch (ErrnoException e) {
+                throw new RuntimeException(e);
+            }
+            xitongdiaoyong();
         }
     }
 }

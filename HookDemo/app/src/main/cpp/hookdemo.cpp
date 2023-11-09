@@ -4,10 +4,31 @@
 #include <string.h>
 #include<android/log.h>
 #include <string>
+#include <sys/endian.h>
 #include "utils.cpp"
 
 #include "sha1.h"
 #include "aes.h"
+
+
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <cstring>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <cerrno>
+#include <fcntl.h>
+#include <android/log.h>
+#include <sys/stat.h>
+#include <cstdlib>
+#include <string>
+#include <elf.h>
+#include <link.h>
+#include <sys/ptrace.h>
+#include <dirent.h>
+
+#include <sys/resource.h>
+
 static const uint8_t AES_KEY[] = "xS544RXNm0P4JVLHIEsTqJNzDbZhiLjr";
 
 #define TAG    "muyang" // 这个是自定义的LOG的标识
@@ -15,6 +36,9 @@ static const uint8_t AES_KEY[] = "xS544RXNm0P4JVLHIEsTqJNzDbZhiLjr";
 #define LOGI(...)  __android_log_print(ANDROID_LOG_INFO,TAG,__VA_ARGS__) // 定义LOGI类型
 #define LOGW(...)  __android_log_print(ANDROID_LOG_WARN,TAG,__VA_ARGS__) // 定义LOGW类型
 #define LOGE(...)  __android_log_print(ANDROID_LOG_ERROR,TAG,__VA_ARGS__) // 定义LOGE类型
+
+#define MAX_LINE 512
+
 
 const char *addString(const char *arg1, const char *arg2) {
     // 将结果转换为 const char* 类型，并返回
@@ -250,12 +274,12 @@ JNIEXPORT jstring JNICALL
 Java_com_example_hookdemo_MainActivity_sha1(JNIEnv *env, jobject thiz, jstring str1) {
     // TODO: implement sha1()
 
-    const char * plaintextChar = env->GetStringUTFChars(str1, 0);
+    const char *plaintextChar = env->GetStringUTFChars(str1, 0);
     std::string plaintextStr = std::string(plaintextChar);
 
     SHA1 sha1;
     std::string sha1String = sha1(plaintextStr);
-    char * tabStr = new char [sha1String.length()+1];
+    char *tabStr = new char[sha1String.length() + 1];
     strcpy(tabStr, sha1String.c_str());
 
     char sha1Result[128] = {0};
@@ -295,7 +319,7 @@ Java_com_example_hookdemo_MainActivity_aesDecryptECB(JNIEnv *env, jclass clazz, 
     return jbArr;
 }
 
-jbyteArray convertByteArrayToJByteArray(JNIEnv* env, const jbyte* byteArray, int length) {
+jbyteArray convertByteArrayToJByteArray(JNIEnv *env, const jbyte *byteArray, int length) {
     jbyteArray jbyteArrayObject = env->NewByteArray(length);
     env->SetByteArrayRegion(jbyteArrayObject, 0, length, byteArray);
 
@@ -306,18 +330,21 @@ extern "C"
 JNIEXPORT jstring JNICALL
 Java_com_example_hookdemo_MainActivity_getHash(JNIEnv *env, jobject thiz, jstring apk_path) {
     // TODO: implement getHash()
-    const char* apkPath = env->GetStringUTFChars(apk_path, NULL);
+    const char *apkPath = env->GetStringUTFChars(apk_path, NULL);
 
     // 获取Java类和方法的引用
     jclass zipFileClass = env->FindClass("java/util/zip/ZipFile");
     jmethodID openMethod = env->GetMethodID(zipFileClass, "<init>", "(Ljava/lang/String;)V");
-    jmethodID entriesMethod = env->GetMethodID(zipFileClass, "entries", "()Ljava/util/Enumeration;");
+    jmethodID entriesMethod = env->GetMethodID(zipFileClass, "entries",
+                                               "()Ljava/util/Enumeration;");
     jclass enumerationClass = env->FindClass("java/util/Enumeration");
     jmethodID hasMoreElementsMethod = env->GetMethodID(enumerationClass, "hasMoreElements", "()Z");
-    jmethodID nextElementMethod = env->GetMethodID(enumerationClass, "nextElement", "()Ljava/lang/Object;");
+    jmethodID nextElementMethod = env->GetMethodID(enumerationClass, "nextElement",
+                                                   "()Ljava/lang/Object;");
     jclass zipEntryClass = env->FindClass("java/util/zip/ZipEntry");
     jmethodID getNameMethod = env->GetMethodID(zipEntryClass, "getName", "()Ljava/lang/String;");
-    jmethodID getInputStreamMethod = env->GetMethodID(zipFileClass, "getInputStream", "(Ljava/util/zip/ZipEntry;)Ljava/io/InputStream;");
+    jmethodID getInputStreamMethod = env->GetMethodID(zipFileClass, "getInputStream",
+                                                      "(Ljava/util/zip/ZipEntry;)Ljava/io/InputStream;");
     jclass inputStreamClass = env->FindClass("java/io/InputStream");
     jmethodID readMethod = env->GetMethodID(inputStreamClass, "read", "([B)I");
     jmethodID closeMethod = env->GetMethodID(inputStreamClass, "close", "()V");
@@ -325,7 +352,7 @@ Java_com_example_hookdemo_MainActivity_getHash(JNIEnv *env, jobject thiz, jstrin
     // 创建ZipFile对象并打开APK文件
     jobject zipFileObj = env->NewObject(zipFileClass, openMethod, apk_path);
     if (zipFileObj == NULL) {
-        __android_log_print(ANDROID_LOG_ERROR, "JNI", "Failed to open APK file");
+        LOGE( "Failed to open APK file");
         env->ReleaseStringUTFChars(apk_path, apkPath);
         return NULL;
     }
@@ -333,7 +360,7 @@ Java_com_example_hookdemo_MainActivity_getHash(JNIEnv *env, jobject thiz, jstrin
     // 获取ZipFile的entries方法并调用
     jobject entriesObj = env->CallObjectMethod(zipFileObj, entriesMethod);
     if (entriesObj == NULL) {
-        __android_log_print(ANDROID_LOG_ERROR, "JNI", "Failed to get entries");
+        LOGE( "Failed to get entries");
         env->DeleteLocalRef(zipFileObj);
         env->ReleaseStringUTFChars(apk_path, apkPath);
         return NULL;
@@ -344,32 +371,34 @@ Java_com_example_hookdemo_MainActivity_getHash(JNIEnv *env, jobject thiz, jstrin
 
 // 获取MessageDigest类和DigestUtils类的引用
     jclass messageDigestClass = env->FindClass("java/security/MessageDigest");
-    jmethodID getInstanceMethod = env->GetStaticMethodID(messageDigestClass, "getInstance", "(Ljava/lang/String;)Ljava/security/MessageDigest;");
+    jmethodID getInstanceMethod = env->GetStaticMethodID(messageDigestClass, "getInstance",
+                                                         "(Ljava/lang/String;)Ljava/security/MessageDigest;");
     // 获取MD5哈希值
     jstring algorithm = env->NewStringUTF("MD5");
-    jobject messageDigestObj = env->CallStaticObjectMethod(messageDigestClass, getInstanceMethod, algorithm);
+    jobject messageDigestObj = env->CallStaticObjectMethod(messageDigestClass, getInstanceMethod,
+                                                           algorithm);
 
     jmethodID md5update = env->GetMethodID(messageDigestClass, "update", "([B)V");
     jmethodID md5digest = env->GetMethodID(messageDigestClass, "digest", "()[B");
-
 
 
     while (hasMoreElements) {
         jobject zipEntryObj = env->CallObjectMethod(entriesObj, nextElementMethod);
         if (zipEntryObj != NULL) {
             jstring nameObj = (jstring) env->CallObjectMethod(zipEntryObj, getNameMethod);
-            const char* entryName = env->GetStringUTFChars(nameObj, NULL);
+            const char *entryName = env->GetStringUTFChars(nameObj, NULL);
 
             // 获取ZipEntry对应的InputStream对象
             jobject inputObj = env->CallObjectMethod(zipFileObj, getInputStreamMethod, zipEntryObj);
             if (inputObj != NULL) {
                 // 读取InputStream中的数据并更新MD5值
                 jbyteArray bufferObj = env->NewByteArray(4096);
-                jbyte* buffer = env->GetByteArrayElements(bufferObj, NULL);
+                jbyte *buffer = env->GetByteArrayElements(bufferObj, NULL);
                 jint bytesRead;
                 while ((bytesRead = env->CallIntMethod(inputObj, readMethod, bufferObj)) > 0) {
 //                    MD5_Update(&md5Ctx, buffer, bytesRead);
-                    env->CallVoidMethod(messageDigestObj,md5update,convertByteArrayToJByteArray(env,buffer,bytesRead));
+                    env->CallVoidMethod(messageDigestObj, md5update,
+                                        convertByteArrayToJByteArray(env, buffer, bytesRead));
                 }
                 env->ReleaseByteArrayElements(bufferObj, buffer, 0);
                 env->DeleteLocalRef(bufferObj);
@@ -394,31 +423,265 @@ Java_com_example_hookdemo_MainActivity_getHash(JNIEnv *env, jobject thiz, jstrin
 
     jbyteArray jbyteArray1 = static_cast<jbyteArray>(env->CallObjectMethod(messageDigestObj,
                                                                            md5digest));
-    jsize jsize1 = env->GetArrayLength(jbyteArray1) ;
+    jsize jsize1 = env->GetArrayLength(jbyteArray1);
 
-    jbyte* jbyte1= env->GetByteArrayElements(jbyteArray1,0);
+    jbyte *jbyte1 = env->GetByteArrayElements(jbyteArray1, 0);
 
     char buf[33];
-    for (int i=0;i<jsize1;i++) {
-        sprintf(buf + i * 2,"%02X",jbyte1[i]);
+    for (int i = 0; i < jsize1; i++) {
+        sprintf(buf + i * 2, "%02X", jbyte1[i]);
     }
     buf[32] = 0;
-    LOGE("%s",buf);
+
+//    LOGD("%s", buf);
 
     return env->NewStringUTF(buf);
 
 }
+
+void *detect_frida_loop(void *) {
+
+    struct sockaddr_in sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sin_family = AF_INET;
+    inet_aton("127.0.0.1", &(sa.sin_addr));
+
+    int sock;
+
+    int fd;
+    char map[MAX_LINE];
+    char res[7];
+    int num_found;
+    int ret;
+    int i;
+
+    /*
+     * 1: Frida Server Detection.
+     */
+    for (i = 0; i <= 65535; i++) {
+
+        sock = socket(AF_INET, SOCK_STREAM, 0);
+        sa.sin_port = htons(i);
+
+        if (connect(sock, (struct sockaddr *) &sa, sizeof sa) != -1) {
+            memset(res, 0, 7);
+
+            send(sock, "\x00", 1, NULL);
+            send(sock, "AUTH\r\n", 6, NULL);
+
+            usleep(100); // Give it some time to answer
+
+            if ((ret = recv(sock, res, 6, MSG_DONTWAIT)) != -1) {
+                if (strcmp(res, "REJECT") == 0) {
+                    LOGD("port 找到frida");
+                    return nullptr;
+                }
+            }
+        }
+
+        close(sock);
+    }
+    LOGD("port 未找到frida");
+    return nullptr;
+}
+
+
+char *add(char *a1, char *a2) {
+    char *str1 = a1;
+    char *str2 = a2;
+    int len1 = strlen(str1);
+    int len2 = strlen(str2);
+    char *result = (char *) malloc(len1 + len2 + 1);
+    strcpy(result, str1);
+    strcat(result, str2);
+    free(result);
+    return result;
+}
+
+char *GetProcessName() {
+    FILE *file = fopen("/proc/self/cmdline", "r");
+    if (file == NULL) {
+        perror("Failed to open /proc/self/cmdline");
+        return NULL;
+    }
+
+    char *cmdline = NULL;
+    size_t bufsize = 0;
+    ssize_t readsize = getline(&cmdline, &bufsize, file);
+    fclose(file);
+
+    if (readsize <= 0) {
+        perror("Failed to read /proc/self/cmdline");
+        free(cmdline);
+        return NULL;
+    }
+
+    // 提取进程名称（即第一个命令行参数）
+    int nullpos = 0;
+    while (nullpos < readsize && cmdline[nullpos] != '\0') {
+        nullpos++;
+    }
+    cmdline[nullpos] = '\0';
+
+    return cmdline;
+}
+
+
 extern "C"
 JNIEXPORT jstring JNICALL
 Java_com_example_hookdemo_MainActivity_jiance_1xp_1frida(JNIEnv *env, jobject thiz) {
     // TODO: implement jiance_xp_frida()
+    //重点在于unidbg补环境的操作  所以检测难度不高
     //在这里面实现 读取maps,fd文件检测
-//    pthread_t t;
-//    if (pthread_create(&t, nullptr, check_loop, (void *) nullptr) != 0) {
-//        exit(-1);
-//    };
-//    pthread_detach(t);
-    check_loop(reinterpret_cast<void *>(1));
-    return env->NewStringUTF("11");
+    char *resul = "";
+
+
+    //判断是否有root
+    const char *files[] = {"/system/bin/", "/system/xbin/", "/system/sbin/", "/sbin/",
+                           "/vendor/bin/"};
+    int numFiles = sizeof(files) / sizeof(files[0]);
+
+    for (int i = 0; i < numFiles; i++) {
+        bool exists = file_exist(files[i]);
+        if (exists) {
+            LOGD("检测到root");
+            resul = add(resul, "检测到root ");
+        }
+    }
+
+
+    pthread_t t;
+
+    pthread_create(&t, NULL, detect_frida_loop, (void *) NULL);
+    pthread_detach(t);
+
+    struct sockaddr_in sa{};
+    sa.sin_family = AF_INET;
+    sa.sin_port = htons(27042);
+    inet_aton("127.0.0.1", &sa.sin_addr);
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (connect(sock, (struct sockaddr *) &sa, sizeof(sa)) == 0) {
+        // we can connect to frida-server when it's running
+        close(sock);
+        LOGD("port 找到frida");
+    }
+    if (simulator_files_check() != "") {
+        resul = add(resul, "检测到虚拟机 ");
+        resul = add(resul, simulator_files_check());
+    }
+    int cont = thermal_check();
+    if (cont == -1) {
+        resul = add(resul, "没有检测到温度挂载文件 ");
+    }
+
+
+    char *filePath = "/data";
+    //这里并没有实现好  bug
+    DIR *dir_ptr = opendir(filePath);
+    if (dir_ptr != nullptr) {
+        LOGD("该机型已root");
+    } else {
+        LOGD("该机型未root");
+    }
+
+    if (strcmp(GetProcessName(), "com.example.hookdemo") != 0) {
+        LOGD("当前进程名出错%s", GetProcessName());
+        resul = add(resul, "当前进程名出错 ");
+    }
+
+
+    FILE *file = fopen("/proc/self/maps", "r");
+    if (file != NULL) {
+        char line[256];
+        while (fgets(line, sizeof(line), file)) {
+            if (strstr(line, "frida-agent") != NULL) {
+                LOGD("maps 找到frida");
+                resul = add(resul, "maps检测到frida ");
+                break;
+            }
+        }
+    } else {
+        resul = add(resul, " 没有找到maps ");
+    }
+    if (resul == "") {
+        resul = "成功过关";
+    }
+    return env->NewStringUTF(resul);
 }
 
+
+#include <sys/wait.h>
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_example_hookdemo_MainActivity_xitongdiaoyong(JNIEnv *env, jobject thiz) {
+    //获取系统属性的第一种
+    jclass androidBuildClass = env->FindClass("android/os/Build");
+    jfieldID SERIAL = env->GetStaticFieldID(androidBuildClass, "MODEL",
+                                            "Ljava/lang/String;");
+    jstring serialNum = (jstring) env->GetStaticObjectField(androidBuildClass,
+                                                            SERIAL);
+    LOGI("第1种结果 :%s", Jstring2CStr(env, serialNum));
+
+    //常见方式是使用系统调用获取相关属性，不管是通过syscall函数还是内联汇编，都属此类。
+    //常见的比如useage系统调用
+    //https://chromium.googlesource.com/chromiumos/docs/+/master/constants/syscalls.md#arm-32_bit_EABI
+    struct rusage useage{};
+    getrusage(RUSAGE_SELF, &useage);
+    int t = useage.ru_utime.tv_sec + useage.ru_stime.tv_sec;
+    LOGI("第2种结果 :%d", t);
+
+
+
+    std::string salt("data123");
+
+    //getenv
+    char *name = getenv("muyang");
+    int length = strlen(name);
+
+    if (name == NULL) {
+        salt.append("find_exception!");
+    } else {
+        salt.append(name);
+    }
+    LOGD("第3种结果%s", salt.c_str());
+
+
+
+    struct timespec start_time, end_time;
+    long long sum = 0;
+
+    // 获取线程开始时的CPU时间
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start_time);
+
+    // 执行累加操作
+    for (long long i = 0; i < 500; ++i) {
+        sum += i;
+    }
+
+    // 获取线程结束时的CPU时间
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end_time);
+
+    // 计算并打印线程执行所用的CPU时间
+    double time_elapsed = (end_time.tv_sec - start_time.tv_sec) +(end_time.tv_nsec - start_time.tv_nsec);
+    LOGD("第4种结果%f", time_elapsed);
+
+
+    //常见方式是通过system_property_get 函数获取系统属性也是常见做法
+    //https://blog.csdn.net/q610098308/article/details/104812279/
+    char *key = "ro.build.id";
+    char value[256] = {0};
+    __system_property_get(key, value);
+    LOGI("第5种结果 :%s", value);
+
+    //文件访问   比如取/proc/pid/maps
+
+    //第四种就是 popen()
+    std::string cmd = "stat /data";
+    char value1[250] = {0};
+    FILE* file = popen(cmd.c_str(), "r");
+    fread(value1, 250, 1, file);
+    LOGD("%s",value1);
+    pclose(file);
+}

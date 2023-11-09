@@ -11,6 +11,7 @@
 #include <elf.h>
 #include <link.h>
 #include <fcntl.h>
+#include <dirent.h>
 
 #define TAG    "muyang" // 这个是自定义的LOG的标识
 #define LOGD(...)  __android_log_print(ANDROID_LOG_DEBUG,TAG,__VA_ARGS__) // 定义LOGD类型
@@ -30,15 +31,17 @@
 
 
 
-const char *app_sha1="99C6E6A24145D3F3E7F33D431A3665D6C906482E";
-const char hexcode[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+const char *app_sha1 = "99C6E6A24145D3F3E7F33D431A3665D6C906482E";
+const char hexcode[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E',
+                        'F'};
 
-char* getSha1(JNIEnv *env, jobject context_object){
+char *getSha1(JNIEnv *env, jobject context_object) {
     //上下文对象
     jclass context_class = env->GetObjectClass(context_object);
 
     //反射获取PackageManager
-    jmethodID methodId = env->GetMethodID(context_class, "getPackageManager", "()Landroid/content/pm/PackageManager;");
+    jmethodID methodId = env->GetMethodID(context_class, "getPackageManager",
+                                          "()Landroid/content/pm/PackageManager;");
     jobject package_manager = env->CallObjectMethod(context_object, methodId);
     if (package_manager == NULL) {
         LOGD("package_manager is NULL!!!");
@@ -49,7 +52,7 @@ char* getSha1(JNIEnv *env, jobject context_object){
 
     //反射获取包名
     methodId = env->GetMethodID(ContextWrapper_class, "getPackageName", "()Ljava/lang/String;");
-    jstring package_name = (jstring)env->CallObjectMethod(context_object, methodId);
+    jstring package_name = (jstring) env->CallObjectMethod(context_object, methodId);
     if (package_name == NULL) {
         LOGD("package_name is NULL!!!");
         return NULL;
@@ -58,7 +61,8 @@ char* getSha1(JNIEnv *env, jobject context_object){
 
     //获取PackageInfo对象
     jclass pack_manager_class = env->GetObjectClass(package_manager);
-    methodId = env->GetMethodID(pack_manager_class, "getPackageInfo", "(Ljava/lang/String;I)Landroid/content/pm/PackageInfo;");
+    methodId = env->GetMethodID(pack_manager_class, "getPackageInfo",
+                                "(Ljava/lang/String;I)Landroid/content/pm/PackageInfo;");
     env->DeleteLocalRef(pack_manager_class);
     jobject package_info = env->CallObjectMethod(package_manager, methodId, package_name, 0x40);
     if (package_info == NULL) {
@@ -69,9 +73,10 @@ char* getSha1(JNIEnv *env, jobject context_object){
 
     //获取签名信息
     jclass package_info_class = env->GetObjectClass(package_info);
-    jfieldID fieldId = env->GetFieldID(package_info_class, "signatures", "[Landroid/content/pm/Signature;");
+    jfieldID fieldId = env->GetFieldID(package_info_class, "signatures",
+                                       "[Landroid/content/pm/Signature;");
     env->DeleteLocalRef(package_info_class);
-    jobjectArray signature_object_array = (jobjectArray)env->GetObjectField(package_info, fieldId);
+    jobjectArray signature_object_array = (jobjectArray) env->GetObjectField(package_info, fieldId);
     if (signature_object_array == NULL) {
         LOGD("signature is NULL!!!");
         return NULL;
@@ -84,59 +89,65 @@ char* getSha1(JNIEnv *env, jobject context_object){
     methodId = env->GetMethodID(signature_class, "toByteArray", "()[B");
     env->DeleteLocalRef(signature_class);
     jbyteArray signature_byte = (jbyteArray) env->CallObjectMethod(signature_object, methodId);
-    jclass byte_array_input_class=env->FindClass("java/io/ByteArrayInputStream");
-    methodId=env->GetMethodID(byte_array_input_class,"<init>","([B)V");
-    jobject byte_array_input=env->NewObject(byte_array_input_class,methodId,signature_byte);
-    jclass certificate_factory_class=env->FindClass("java/security/cert/CertificateFactory");
-    methodId=env->GetStaticMethodID(certificate_factory_class,"getInstance","(Ljava/lang/String;)Ljava/security/cert/CertificateFactory;");
-    jstring x_509_jstring=env->NewStringUTF("X.509");
-    jobject cert_factory=env->CallStaticObjectMethod(certificate_factory_class,methodId,x_509_jstring);
-    methodId=env->GetMethodID(certificate_factory_class,"generateCertificate",("(Ljava/io/InputStream;)Ljava/security/cert/Certificate;"));
-    jobject x509_cert=env->CallObjectMethod(cert_factory,methodId,byte_array_input);
+    jclass byte_array_input_class = env->FindClass("java/io/ByteArrayInputStream");
+    methodId = env->GetMethodID(byte_array_input_class, "<init>", "([B)V");
+    jobject byte_array_input = env->NewObject(byte_array_input_class, methodId, signature_byte);
+    jclass certificate_factory_class = env->FindClass("java/security/cert/CertificateFactory");
+    methodId = env->GetStaticMethodID(certificate_factory_class, "getInstance",
+                                      "(Ljava/lang/String;)Ljava/security/cert/CertificateFactory;");
+    jstring x_509_jstring = env->NewStringUTF("X.509");
+    jobject cert_factory = env->CallStaticObjectMethod(certificate_factory_class, methodId,
+                                                       x_509_jstring);
+    methodId = env->GetMethodID(certificate_factory_class, "generateCertificate",
+                                ("(Ljava/io/InputStream;)Ljava/security/cert/Certificate;"));
+    jobject x509_cert = env->CallObjectMethod(cert_factory, methodId, byte_array_input);
     env->DeleteLocalRef(certificate_factory_class);
-    jclass x509_cert_class=env->GetObjectClass(x509_cert);
-    methodId=env->GetMethodID(x509_cert_class,"getEncoded","()[B");
-    jbyteArray cert_byte=(jbyteArray)env->CallObjectMethod(x509_cert,methodId);
+    jclass x509_cert_class = env->GetObjectClass(x509_cert);
+    methodId = env->GetMethodID(x509_cert_class, "getEncoded", "()[B");
+    jbyteArray cert_byte = (jbyteArray) env->CallObjectMethod(x509_cert, methodId);
     env->DeleteLocalRef(x509_cert_class);
-    jclass message_digest_class=env->FindClass("java/security/MessageDigest");
-    methodId=env->GetStaticMethodID(message_digest_class,"getInstance","(Ljava/lang/String;)Ljava/security/MessageDigest;");
-    jstring sha1_jstring=env->NewStringUTF("SHA1");
-    jobject sha1_digest=env->CallStaticObjectMethod(message_digest_class,methodId,sha1_jstring);
-    methodId=env->GetMethodID(message_digest_class,"digest","([B)[B");
-    jbyteArray sha1_byte=(jbyteArray)env->CallObjectMethod(sha1_digest,methodId,cert_byte);
+    jclass message_digest_class = env->FindClass("java/security/MessageDigest");
+    methodId = env->GetStaticMethodID(message_digest_class, "getInstance",
+                                      "(Ljava/lang/String;)Ljava/security/MessageDigest;");
+    jstring sha1_jstring = env->NewStringUTF("SHA1");
+    jobject sha1_digest = env->CallStaticObjectMethod(message_digest_class, methodId, sha1_jstring);
+    methodId = env->GetMethodID(message_digest_class, "digest", "([B)[B");
+    jbyteArray sha1_byte = (jbyteArray) env->CallObjectMethod(sha1_digest, methodId, cert_byte);
     env->DeleteLocalRef(message_digest_class);
 
     //转换成char
-    jsize array_size=env->GetArrayLength(sha1_byte);
-    jbyte* sha1 =env->GetByteArrayElements(sha1_byte,NULL);
-    char *hex_sha=new char[array_size*2+1];
-    for (int i = 0; i <array_size ; ++i) {
-        hex_sha[2*i]=hexcode[((unsigned char)sha1[i])/16];
-        hex_sha[2*i+1]=hexcode[((unsigned char)sha1[i])%16];
+    jsize array_size = env->GetArrayLength(sha1_byte);
+    jbyte *sha1 = env->GetByteArrayElements(sha1_byte, NULL);
+    char *hex_sha = new char[array_size * 2 + 1];
+    for (int i = 0; i < array_size; ++i) {
+        hex_sha[2 * i] = hexcode[((unsigned char) sha1[i]) / 16];
+        hex_sha[2 * i + 1] = hexcode[((unsigned char) sha1[i]) % 16];
     }
-    hex_sha[array_size*2]='\0';
+    hex_sha[array_size * 2] = '\0';
 
-    LOGD("hex_sha %s ",hex_sha);
+    LOGD("hex_sha %s ", hex_sha);
     return hex_sha;
 }
-jobject getGlobalContext(JNIEnv *env)
-{
+
+jobject getGlobalContext(JNIEnv *env) {
     //获取Activity Thread的实例对象
     jclass activityThread = env->FindClass("android/app/ActivityThread");
 
-    jmethodID currentActivityThread = env->GetStaticMethodID(activityThread, "currentActivityThread", "()Landroid/app/ActivityThread;");
+    jmethodID currentActivityThread = env->GetStaticMethodID(activityThread,
+                                                             "currentActivityThread",
+                                                             "()Landroid/app/ActivityThread;");
     jobject at = env->CallStaticObjectMethod(activityThread, currentActivityThread);
     //获取Application，也就是全局的Context
-    jmethodID getApplication = env->GetMethodID(activityThread, "getApplication", "()Landroid/app/Application;");
+    jmethodID getApplication = env->GetMethodID(activityThread, "getApplication",
+                                                "()Landroid/app/Application;");
     jobject context = env->CallObjectMethod(at, getApplication);
     return context;
 }
 
 
-jboolean checkValidity(JNIEnv *env,char *sha1){
+jboolean checkValidity(JNIEnv *env, char *sha1) {
     //比较签名
-    if (strcmp(sha1,app_sha1)==0)
-    {
+    if (strcmp(sha1, app_sha1) == 0) {
         LOGD("验证成功");
         return true;
     }
@@ -145,15 +156,14 @@ jboolean checkValidity(JNIEnv *env,char *sha1){
 }
 
 
-
-void formatSignature(char* data, char* resultData) {
+void formatSignature(char *data, char *resultData) {
     int resultIndex = 0;
     int length = strlen(data);
-    for(int i = 0; i < length; i++) {
+    for (int i = 0; i < length; i++) {
         resultData[resultIndex] = static_cast<char>(toupper(data[i]));
-        if(i % 2 == 1 && i != length -1) {
-            resultData[resultIndex+1] = ':';
-            resultIndex+=2;
+        if (i % 2 == 1 && i != length - 1) {
+            resultData[resultIndex + 1] = ':';
+            resultIndex += 2;
         } else {
             resultIndex++;
         }
@@ -229,7 +239,7 @@ int elf_check_header(uintptr_t base_addr) {
     ElfW(Ehdr) *ehdr = (ElfW(Ehdr) *) base_addr;
     if (0 != memcmp(ehdr->e_ident, ELFMAG, SELFMAG)) return 0;
 #if defined(__LP64__)
-    if(ELFCLASS64 != ehdr->e_ident[EI_CLASS]) return 0;
+    if (ELFCLASS64 != ehdr->e_ident[EI_CLASS]) return 0;
 #else
     if (ELFCLASS32 != ehdr->e_ident[EI_CLASS]) return 0;
 #endif
@@ -239,6 +249,7 @@ int elf_check_header(uintptr_t base_addr) {
     if (EV_CURRENT != ehdr->e_version) return 0;
     return 1;
 }
+
 void *check_loop(void *) {
     int fd;
     char path[256];
@@ -257,7 +268,7 @@ void *check_loop(void *) {
                     0xdb, 0xea, 0xfe, 0xdc
             };
 
-    for (unsigned char &m : frida_rpc) {
+    for (unsigned char &m: frida_rpc) {
         unsigned char c = m;
         c = ~c;
         c ^= 0xb1;
@@ -267,38 +278,115 @@ void *check_loop(void *) {
         m = c;
     }
     LOGI("start check frida loop");
-        fd = openat(AT_FDCWD, "/proc/self/maps", O_RDONLY, 0);
+    fd = openat(AT_FDCWD, "/proc/self/maps", O_RDONLY, 0);
 
-        if (fd > 0) {
+    if (fd > 0) {
 
-            while ((read_line(fd, buffer, BUFFER_LEN)) > 0) {
-                if (sscanf(buffer, "%x-%lx %4s %lx %*s %*s %s", &base, &end, perm, &offset, path) !=
-                    5) {
-                    continue;
-                }
-                LOGI("start check frida loop 111 %d",(read_line(fd, buffer, BUFFER_LEN)));
-                if (perm[0] != 'r') continue;
-                if (perm[3] != 'p') continue; //do not touch the shared memory
-                if (0 != offset) continue;
-                if (strlen(path) == 0) continue;
-                if ('[' == path[0]) continue;
-                if (end - base <= 1000000) continue;
-                if (wrap_endsWith(path, ".oat")) continue;
-                if (elf_check_header(base) != 1) continue;
-                if (find_mem_string(base, end, frida_rpc, length) == 1) {
-                    LOGI("frida found in memory!");
+        while ((read_line(fd, buffer, BUFFER_LEN)) > 0) {
+            if (sscanf(buffer, "%x-%lx %4s %lx %*s %*s %s", &base, &end, perm, &offset, path) !=
+                5) {
+                continue;
+            }
+            LOGI("start check frida loop 111 %d", (read_line(fd, buffer, BUFFER_LEN)));
+            if (perm[0] != 'r') continue;
+            if (perm[3] != 'p') continue; //do not touch the shared memory
+            if (0 != offset) continue;
+            if (strlen(path) == 0) continue;
+            if ('[' == path[0]) continue;
+            if (end - base <= 1000000) continue;
+            if (wrap_endsWith(path, ".oat")) continue;
+            if (elf_check_header(base) != 1) continue;
+            if (find_mem_string(base, end, frida_rpc, length) == 1) {
+                LOGI("frida found in memory!");
 //#ifndef DEBUG
 //                    kill(getpid(),SIGKILL);
 //#endif
-                    break;
-                }
+                break;
             }
-        } else {
-            LOGI("open maps error");
         }
-        LOGI("start check frida loop fd3333%d",fd);
+    } else {
+        LOGI("open maps error");
+    }
+    LOGI("start check frida loop fd3333%d", fd);
 
-        close(fd);
+    close(fd);
 
     return nullptr;
+}
+
+
+bool file_exist(const char *filename) {
+    FILE *file = fopen(filename, "r");
+    if (file != NULL) {
+        fclose(file);
+        return true;
+    }
+    return false;
+}
+
+//检测温度挂载文件：
+int thermal_check() {
+    DIR *dir_ptr;
+    int count = 0;
+    struct dirent *entry;
+    if ((dir_ptr = opendir("/sys/class/thermal/")) != nullptr) {
+        while ((entry = readdir(dir_ptr))) {
+            if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) {
+                continue;
+            }
+            char *tmp = entry->d_name;
+            if (strstr(tmp, "thermal_zone") != nullptr) {
+                LOGD("找到的温度文件%s", tmp);
+                count++;
+            }
+        }
+        closedir(dir_ptr);
+    } else {
+        count = -1;
+    }
+    return count;
+}
+
+char *simulator_files_check() {
+    if (file_exist("/system/bin/androVM-prop")) {//检测androidVM
+        return "/system/bin/androVM-prop";
+    } else if (file_exist("/system/bin/microvirt-prop")) {//检测逍遥模拟器--新版本找不到特征
+        return "/system/bin/microvirt-prop";
+    } else if (file_exist("/system/lib/libdroid4x.so")) {//检测海马模拟器
+        return "/system/lib/libdroid4x.so";
+    } else if (file_exist("/system/bin/windroyed")) {//检测文卓爷模拟器
+        return "/system/bin/windroyed";
+    } else if (file_exist("/system/bin/nox-prop")) {//检测夜神模拟器--某些版本找不到特征
+        return "/system/bin/nox-prop";
+    }
+    LOGD("simulator file check info not find  ");
+    return "";
+}
+
+
+// java中的jstring, 转化为c的一个字符数组
+char *Jstring2CStr(JNIEnv *env, jstring jstr) {
+    char *rtn = NULL;
+    //获得java.lang.String类的一个实例
+    jclass clsstring = (env)->FindClass("java/lang/String");
+//指定编码方式
+    jstring strencode = (env)->NewStringUTF("utf-8");//utf-16,GB2312
+//获得方法 getBytes
+    jmethodID mid = (env)->GetMethodID(clsstring, "getBytes", "(Ljava/lang/String;)[B");
+//通过回调java中的getBytes方法将字符串jstr转换成uft-8编码的字节数组
+    jbyteArray barr = (jbyteArray) (env)->CallObjectMethod(jstr, mid, strencode);
+// String .getByte("GB2312");
+//获得字节数组的长度
+    jsize alen = (env)->GetArrayLength(barr);
+//获得字节数组的首地址
+    jbyte *ba = (env)->GetByteArrayElements(barr, JNI_FALSE);
+    if (alen > 0) {
+//分配内存空间
+        rtn = (char *) malloc(alen + 1); //new char[alen+1]; "\0"
+//将字符串ba复制到 rtn
+        memcpy(rtn, ba, alen);
+        rtn[alen] = 0;
+    }
+    (env)->ReleaseByteArrayElements(barr, ba, 0); //释放内存
+    return rtn;
 }
