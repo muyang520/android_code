@@ -13,6 +13,9 @@
 #include <fcntl.h>
 #include <dirent.h>
 
+#include <android/asset_manager.h>
+#include <android/asset_manager_jni.h>
+
 #define TAG    "muyang" // 这个是自定义的LOG的标识
 #define LOGD(...)  __android_log_print(ANDROID_LOG_DEBUG,TAG,__VA_ARGS__) // 定义LOGD类型
 #define LOGI(...)  __android_log_print(ANDROID_LOG_INFO,TAG,__VA_ARGS__) // 定义LOGI类型
@@ -389,4 +392,67 @@ char *Jstring2CStr(JNIEnv *env, jstring jstr) {
     }
     (env)->ReleaseByteArrayElements(barr, ba, 0); //释放内存
     return rtn;
+}
+
+void main1_AAssetManager(JNIEnv *env,jobject thiz){
+
+//    // Get the class of android.content.Context
+//    jclass contextClass = env->FindClass("android/content/Context");
+//
+//    // Get the method ID of the method "getApplicationContext"
+//    jmethodID getApplicationContextMethodId = env->GetMethodID(contextClass, "getApplicationContext", "()Landroid/content/Context;");
+//
+//    // Call the method on the object
+//    jobject contextObject = env->CallObjectMethod(thiz, getApplicationContextMethodId);
+//
+//    // Get the method ID of the method "getAssets"
+//    jmethodID getAssetsMethodId = env->GetMethodID(contextClass, "getAssets", "()Landroid/content/res/AssetManager;");
+//
+//    // Call the method on the context object
+//    jobject assetManager = env->CallObjectMethod(contextObject, getAssetsMethodId);
+    // 获取 Context 类
+    jclass contextClass = env->FindClass("android/content/Context");
+
+    // 获取 getAssets 方法的 MethodID
+    jmethodID getAssets = env->GetMethodID(contextClass, "getAssets", "()Landroid/content/res/AssetManager;");
+
+    // 调用 getAssets 方法获取 AssetManager 对象
+    jobject assetManager = env->CallObjectMethod(getGlobalContext(env), getAssets);
+
+    // 使用 assetManager 访问 APK 文件中的资源
+    AAssetManager* mgr = AAssetManager_fromJava(env, assetManager);
+
+    // Convert the AssetManager object to AAssetManager
+    if (mgr == NULL) {
+        LOGI("Failed to get AAssetManager.");
+        return;
+    }
+
+    AAsset* asset = AAssetManager_open(mgr, "sample.txt", AASSET_MODE_BUFFER);
+    if (asset == NULL) {
+        LOGI("Failed to open sample.txt.");
+        return;
+    }
+
+    off_t length = AAsset_getLength(asset);
+    char* buffer = (char*) malloc(sizeof(char) * (length + 1));
+    AAsset_read(asset, buffer, length);
+    buffer[length] = '\0';
+
+    LOGI("Asset content: %s", buffer);
+
+    AAsset_close(asset);
+    free(buffer);
+}
+
+bool areStringsEqual(JNIEnv *env, jobject thiz, jstring str1, jstring str2) {
+    const char *nativeStr1 = env->GetStringUTFChars(str1, nullptr);
+    const char *nativeStr2 = env->GetStringUTFChars(str2, nullptr);
+
+    jboolean result = (strcmp(nativeStr1, nativeStr2) == 0) ? JNI_TRUE : JNI_FALSE;
+
+    env->ReleaseStringUTFChars(str1, nativeStr1);
+    env->ReleaseStringUTFChars(str2, nativeStr2);
+
+    return result;
 }

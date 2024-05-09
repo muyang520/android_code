@@ -1,22 +1,25 @@
 package com.example.hookdemo;
 
 import androidx.appcompat.app.AppCompatActivity;
-
+import android.Manifest;
+import android.app.Application;
 import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
 import android.system.ErrnoException;
 import android.system.Os;
+import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
 import java.io.DataOutputStream;
 import java.lang.reflect.Array;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-
+import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     static {
@@ -45,6 +48,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public native String jiance_xp_frida();
     public native void xitongdiaoyong();
 
+    //函数调用链相关
+    //此函数用来做多个初始化动作
+    public native void main(int i);
+
+    //此函数用来返回各个字段名称
+    public native String main1(int i);
+
+    //最终的加密函数
+    public native String callchushihua1();
+    public native String callchushihua2();
+
     private TextView textView;
 
     @Override
@@ -72,6 +86,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         findViewById(R.id.huoquapkhash).setOnClickListener(this);
         findViewById(R.id.jiancefrida).setOnClickListener(this);
         findViewById(R.id.xitongbianliang).setOnClickListener(this);
+        findViewById(R.id.chushihua).setOnClickListener(this);
+        findViewById(R.id.chushihua2).setOnClickListener(this);
 
         person1 = new Person("全局muyang", 20, "中国");
         textView = findViewById(R.id.testviewmd5);
@@ -79,6 +95,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         sayHello("muyang");
         Log.d("muyang", "加法" + add(1, 2));
 
+        //进行初始化
+        main(1);
+        main(2);
+        main(3);
+        main(4);
     }
 
     public void showlog(String msg) {
@@ -289,6 +310,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             String[] listString = new String[]{"nihao", "shijie"};
             tesucanshu(shuzu, duixiang1, list, Sites, listString);
             tesucanshu2(shuzu, duixiang1, list, Sites, listString);
+
         } else if (v.getId() == R.id.unidbg_fuzhacanshu) {
 
             //数组类型 https://www.runoob.com/java/java-array.html
@@ -332,6 +354,30 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 throw new RuntimeException(e);
             }
             xitongdiaoyong();
+        }else if(v.getId() == R.id.chushihua){
+            textView.setText(callchushihua1());
+            Utils util = new Utils();
+            Log.d(TAG, String.valueOf(util.isWifiProxy(getApplicationContext())));
+            Log.d(TAG, String.valueOf(util.isVpnConnectionActive(getApplicationContext())));
+            Log.d(TAG, "是否开启autojs无障碍:"+String.valueOf(util.isAccessibilityServiceEnabled(this, "com.stardust.scriptdroid.accessibility.AccessibilityService")));
+
+            Log.d(TAG, "是否具有电话权限:"+util.hasPermission(this, Manifest.permission.CAMERA));
+            Log.d(TAG, "是否具有访问网络权限:"+util.hasPermission(this, Manifest.permission.ACCESS_NETWORK_STATE));
+            Log.d(TAG, "是否具有访问Wi-Fi权限:"+util.hasPermission(this, Manifest.permission.ACCESS_WIFI_STATE));
+
+            Log.d(TAG,"当前包名->"+main1(1));
+            Log.d(TAG,"当前SDK版本->"+main1(2));
+            Log.d(TAG,"内存->"+util.getTotalStorageSizeInGB());
+
+
+        }else if(v.getId() == R.id.chushihua2){
+            textView.setText(callchushihua2());
+
+            UUID randomUUID = UUID.fromString("befc5388-ea1d-41b5-9494-66517aeb7630");
+            ByteBuffer wrap = ByteBuffer.wrap(new byte[16]);
+            wrap.putLong(randomUUID.getMostSignificantBits());
+            wrap.putLong(randomUUID.getLeastSignificantBits());
+            Base64.encodeToString(wrap.array(),11);
         }
     }
 }

@@ -39,6 +39,10 @@ static const uint8_t AES_KEY[] = "xS544RXNm0P4JVLHIEsTqJNzDbZhiLjr";
 
 #define MAX_LINE 512
 
+int chushihua = 0;
+int chushihua2 = 0;
+int biaozhi = 0;
+
 
 const char *addString(const char *arg1, const char *arg2) {
     // 将结果转换为 const char* 类型，并返回
@@ -352,7 +356,7 @@ Java_com_example_hookdemo_MainActivity_getHash(JNIEnv *env, jobject thiz, jstrin
     // 创建ZipFile对象并打开APK文件
     jobject zipFileObj = env->NewObject(zipFileClass, openMethod, apk_path);
     if (zipFileObj == NULL) {
-        LOGE( "Failed to open APK file");
+        LOGE("Failed to open APK file");
         env->ReleaseStringUTFChars(apk_path, apkPath);
         return NULL;
     }
@@ -360,7 +364,7 @@ Java_com_example_hookdemo_MainActivity_getHash(JNIEnv *env, jobject thiz, jstrin
     // 获取ZipFile的entries方法并调用
     jobject entriesObj = env->CallObjectMethod(zipFileObj, entriesMethod);
     if (entriesObj == NULL) {
-        LOGE( "Failed to get entries");
+        LOGE("Failed to get entries");
         env->DeleteLocalRef(zipFileObj);
         env->ReleaseStringUTFChars(apk_path, apkPath);
         return NULL;
@@ -633,7 +637,6 @@ Java_com_example_hookdemo_MainActivity_xitongdiaoyong(JNIEnv *env, jobject thiz)
     LOGI("第2种结果 :%d", t);
 
 
-
     std::string salt("data123");
 
     //getenv
@@ -646,7 +649,6 @@ Java_com_example_hookdemo_MainActivity_xitongdiaoyong(JNIEnv *env, jobject thiz)
         salt.append(name);
     }
     LOGD("第3种结果%s", salt.c_str());
-
 
 
     struct timespec start_time, end_time;
@@ -664,7 +666,8 @@ Java_com_example_hookdemo_MainActivity_xitongdiaoyong(JNIEnv *env, jobject thiz)
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end_time);
 
     // 计算并打印线程执行所用的CPU时间
-    double time_elapsed = (end_time.tv_sec - start_time.tv_sec) +(end_time.tv_nsec - start_time.tv_nsec);
+    double time_elapsed =
+            (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_nsec - start_time.tv_nsec);
     LOGD("第4种结果%f", time_elapsed);
 
 
@@ -680,8 +683,196 @@ Java_com_example_hookdemo_MainActivity_xitongdiaoyong(JNIEnv *env, jobject thiz)
     //第四种就是 popen()
     std::string cmd = "stat /data";
     char value1[250] = {0};
-    FILE* file = popen(cmd.c_str(), "r");
+    FILE *file = popen(cmd.c_str(), "r");
     fread(value1, 250, 1, file);
-    LOGD("%s",value1);
+    LOGD("%s", value1);
     pclose(file);
+}
+
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_example_hookdemo_MainActivity_main(JNIEnv *env, jobject thiz, jint i) {
+    //这个函数主要用来调用函数很多个选择
+    jclass Utils_lazz = env->FindClass("com/example/hookdemo/Utils");
+    jobject Utils_object = env->AllocObject(Utils_lazz);
+
+
+    switch (i) {
+        case 1:
+            if (biaozhi == 0) {
+
+                //新知识点  和  检测网络代理 这一关
+                // libandroid.so 的添加
+                main1_AAssetManager(env, thiz);
+                jmethodID isWifiProxy_ID = env->GetMethodID(Utils_lazz, "isWifiProxy",
+                                                            "(Landroid/content/Context;)Z");
+                jmethodID isVpnConnectionActive_ID = env->GetMethodID(Utils_lazz,
+                                                                      "isVpnConnectionActive",
+                                                                      "(Landroid/content/Context;)Z");
+                jboolean jb1 = env->CallBooleanMethod(Utils_object, isWifiProxy_ID,
+                                                      getGlobalContext(env));
+                jboolean jb2 = env->CallBooleanMethod(Utils_object, isVpnConnectionActive_ID,
+                                                      getGlobalContext(env));
+                LOGD("是否wifi代理->%d", jb1);
+                LOGD("是否VPN代理->%d", jb2);
+                if (!jb1 && !jb2) {
+                    biaozhi += 1;
+                } else {
+                    LOGD("请关闭代理");
+                }
+            } else {
+                LOGE("顺序调用失败1");
+            }
+            break;
+        case 2:
+            if (biaozhi == 1) {
+                //是否有autojs 无障碍
+                jmethodID isAccessibilityServiceEnabled_ID = env->GetMethodID(Utils_lazz,
+                                                                              "isAccessibilityServiceEnabled",
+                                                                              "(Landroid/content/Context;Ljava/lang/String;)Z");
+                jboolean jb1 = env->CallBooleanMethod(Utils_object,
+                                                      isAccessibilityServiceEnabled_ID,
+                                                      getGlobalContext(env), env->NewStringUTF(
+                                "com.stardust.scriptdroid.accessibility.AccessibilityService"));
+                LOGD("是否有autojs无障碍 %d", jb1);
+                if (!jb1) {
+                    biaozhi += 1;
+                } else {
+                    LOGD("请关闭无障碍服务 %d", jb1);
+                }
+            } else {
+                LOGE("顺序调用失败2");
+            }
+            break;
+        case 3:
+            if (biaozhi == 2) {
+                //做检测访问权限相关的
+//                Log.d(TAG, "是否具有电话权限:"+util.hasPermission(this, Manifest.permission.CAMERA));
+//                Log.d(TAG, "是否具有访问网络权限:"+util.hasPermission(this, Manifest.permission.ACCESS_NETWORK_STATE));
+//                Log.d(TAG, "是否具有访问Wi-Fi权限:"+util.hasPermission(this, Manifest.permission.ACCESS_WIFI_STATE));
+
+                jmethodID hasPermission_ID = env->GetMethodID(Utils_lazz, "hasPermission",
+                                                              "(Landroid/content/Context;Ljava/lang/String;)Z");
+
+                jboolean dianhua_jb = env->CallBooleanMethod(Utils_object, hasPermission_ID,
+                                                             getGlobalContext(env),
+                                                             env->NewStringUTF(
+                                                                     " Manifest.permission.CAMERA"));
+
+                jboolean fangwen_jb = env->CallBooleanMethod(Utils_object, hasPermission_ID,
+                                                             getGlobalContext(env),
+                                                             env->NewStringUTF(
+                                                                     " Manifest.permission.ACCESS_NETWORK_STATE"));
+
+                jboolean wifi_jb = env->CallBooleanMethod(Utils_object, hasPermission_ID,
+                                                          getGlobalContext(env), env->NewStringUTF(
+                                " Manifest.permission.ACCESS_WIFI_STATE"));
+                LOGD("是否具有电话权限 %d", dianhua_jb);
+                LOGD("是否具有访问网络权限 %d", fangwen_jb);
+                LOGD("是否具有访问Wi-Fi权限 %d", wifi_jb);
+                biaozhi += 1;
+//                if(!dianhua_jb && fangwen_jb && !wifi_jb){
+//                }else{
+//                    LOGE("权限初始化问题");
+//                }
+            } else {
+                LOGE("顺序调用失败3");
+            }
+            break;
+        case 4:
+            if (biaozhi == 3) {
+                jclass MainActivity_lazz = env->FindClass("com/example/hookdemo/MainActivity");
+                LOGE("MainActivity_lazz");
+                jobject MainActivity_object = env->AllocObject(MainActivity_lazz);
+                LOGE("MainActivity_object");
+                jmethodID main1_Id = env->GetMethodID(MainActivity_lazz, "main1",
+                                                      "(I)Ljava/lang/String;");
+                jstring packagename = (jstring) env->CallObjectMethod(MainActivity_object, main1_Id,
+                                                                      1);
+                jstring sdkbanben = (jstring) env->CallObjectMethod(MainActivity_object, main1_Id,
+                                                                    2);
+                const char *sdkbanbenString = env->GetStringUTFChars(sdkbanben, JNI_FALSE);
+                const char *nativeStr1 = env->GetStringUTFChars(packagename, nullptr);
+                const char *nativeStr2 = env->GetStringUTFChars(
+                        env->NewStringUTF("com.example.hookdemo"), nullptr);
+                jboolean result = (strcmp(nativeStr1, nativeStr2) == 0) ? JNI_TRUE : JNI_FALSE;
+                env->ReleaseStringUTFChars(packagename, nativeStr1);
+                env->ReleaseStringUTFChars(env->NewStringUTF("com.example.hookdemo"), nativeStr2);
+
+
+                jmethodID getTotalStorageSizeInGB_ID = env->GetMethodID(Utils_lazz,
+                                                                        "getTotalStorageSizeInGB",
+                                                                        "()Ljava/lang/String;");
+                jstring neicun = (jstring) env->CallObjectMethod(Utils_object,
+                                                                 getTotalStorageSizeInGB_ID);
+                const char *neicunint = env->GetStringUTFChars(neicun, JNI_FALSE);
+
+
+                //获取当前音量getMediaVolume
+                jmethodID getMediaVolume_ID = env->GetMethodID(Utils_lazz, "getMediaVolume",
+                                                               "(Landroid/content/Context;)I");
+                jint Volume = env->CallIntMethod(Utils_object, getMediaVolume_ID,
+                                                 getGlobalContext(env));
+                LOGD("当前音量=%d", Volume);
+                //获取当前屏幕亮度getScreenBrightness
+                jmethodID getScreenBrightness_ID = env->GetMethodID(Utils_lazz, "getScreenBrightness",
+                                                               "(Landroid/content/Context;)I");
+                jint ScreenBrightness = env->CallIntMethod(Utils_object, getScreenBrightness_ID,
+                                                 getGlobalContext(env));
+                LOGD("前屏幕亮度=%d", ScreenBrightness);
+
+                LOGD("当前SDK版本=%d", atoi(sdkbanbenString));
+                if (result && atoi(sdkbanbenString) >= 20 && atoi(neicunint) >= 10 && Volume >= 0) {
+                    chushihua = 1;
+                } else {
+                    LOGE("包名或者SDK版本出错");
+                }
+            } else {
+                LOGE("顺序调用失败4");
+            }
+            break;
+    }
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_example_hookdemo_MainActivity_main1(JNIEnv *env, jobject thiz, jint i) {
+    if (i == 1) {
+        return env->NewStringUTF("com.example.hookdemo");
+    } else if (i == 2) {
+        //返回SKD版本
+        jclass buildVersionClass = env->FindClass("android/os/Build$VERSION");
+        jfieldID sdkIntField = env->GetStaticFieldID(buildVersionClass, "SDK_INT", "I");
+        jint sdkVersion = env->GetStaticIntField(buildVersionClass, sdkIntField);
+        // 将整数转换为字符串
+        std::string versionStr = std::to_string(sdkVersion);
+        // 返回 jstring
+        return env->NewStringUTF(versionStr.c_str());
+    }
+}
+
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_example_hookdemo_MainActivity_callchushihua1(JNIEnv *env, jobject thiz) {
+    if (chushihua == 0) {
+        return env->NewStringUTF("请调用初始化相关");
+    } else {
+        return env->NewStringUTF("恭喜你函数初始化知识点完成");
+    }
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_example_hookdemo_MainActivity_callchushihua2(JNIEnv *env, jobject thiz) {
+
+    if (chushihua == 0) {
+        return env->NewStringUTF("请调用初始化2相关");
+    } else {
+        main1_AAssetManager(env, thiz);
+        char *ret = "请调用初始化相关";
+        int len = strlen(ret);
+        return env->NewStringUTF("恭喜你函数初始化2知识点完成");
+    }
 }
